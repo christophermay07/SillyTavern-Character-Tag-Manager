@@ -202,6 +202,9 @@ The Character/Tag Manager extension adds a configurable settings panel to SillyT
 - **Show Welcome Screen Recent Chats**  
   Control whether recent chats are displayed on SillyTavern's welcome screen.
 
+- **Tag Backups (Restore Tag Backup)**  
+  Snapshots of all tags and tag assignments (`tags` + `tag_map`) are kept in extension settings: one on install, one per day on launch, and one before each **Restore** (`pre-restore`). The **10 most recent** are kept; older ones are dropped. Each entry is labeled with its date, reason, and counts. Restoring replaces your current tags and assignments with the snapshot, keeping every stored tag field (colors, folder type, sort order, creation date, filter state). Folders, notes, and character cards are not touched.
+
 All settings are saved persistently and applied in real-time. You’ll find the settings panel under the "Extensions" section in SillyTavern’s settings menu.
 
 ![image](https://github.com/user-attachments/assets/491b26db-82a9-4fe7-a041-88deb365bbea)

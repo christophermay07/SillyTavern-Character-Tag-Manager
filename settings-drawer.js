@@ -484,7 +484,8 @@ function getBackups() {
 }
 
 function labelForBackup(b, idx) {
-    const when   = (b.createdAt || '').replace('T',' ').replace('Z','').slice(0,19);
+    // addTagMapBackup() stores created_at; createdAt kept for older snapshots
+    const when   = (b.created_at || b.createdAt || '').replace('T',' ').replace('Z','').slice(0,19);
     const reason = b.reason || 'backup';
     const tagN   = Array.isArray(b.tags) ? b.tags.length : 0;
     const mapN   = b.tag_map ? Object.keys(b.tag_map).length : 0;
@@ -521,7 +522,7 @@ function summarizeBackup(b) {
     const previewNames = tagNames.slice(0, 50); // avoid huge dumps
     const extra = tagNames.length > 50 ? `\n… and ${tagNames.length - 50} more` : '';
     return {
-        createdAt: b.createdAt,
+        createdAt: b.created_at || b.createdAt,
         reason: b.reason,
         tagCount: tagNames.length,
         entitiesWithTags: b.tag_map ? Object.keys(b.tag_map).length : 0,
@@ -580,10 +581,11 @@ backupRestoreBtn.addEventListener('click', async () => {
 
         // Apply backup (replace tags + tag_map)
         tags.length = 0;
+        // Keep every stored field (sort_order, create_date, filter_state, ...)
+        // so a restore is a full revert; only normalize the ones the UI needs.
         (Array.isArray(b.tags) ? b.tags : []).forEach(t => {
           tags.push({
-            id: t.id,
-            name: t.name,
+            ...t,
             color: (typeof t.color === 'string') ? t.color : '',
             color2: (typeof t.color2 === 'string') ? t.color2 : '',
             folder_type: typeof t.folder_type === 'string' ? t.folder_type : 'NONE',
