@@ -277,11 +277,20 @@ export async function openTagConversionsEditor() {
         customButtons: [{ text: 'Preview & Convert', result: PREVIEW_AND_CONVERT, icon: 'fa-right-left' }],
         // Match the gutter's vertical metrics to the textarea as styled by the
         // active theme, so numbers stay aligned.
+        // The gutter is pinned to the textarea's height (ST's .text_pole uses
+        // height: fit-content, so flex stretch won't do it); otherwise it
+        // grows to fit every number and has nothing to scroll.
         onOpen: () => {
             const cs = getComputedStyle(textarea);
             gutter.style.paddingTop = `calc(${cs.paddingTop} + ${cs.borderTopWidth})`;
             gutter.style.fontSize = cs.fontSize;
             gutter.style.lineHeight = cs.lineHeight;
+            const syncHeight = () => {
+                gutter.style.height = `${textarea.offsetHeight}px`;
+                gutter.scrollTop = textarea.scrollTop;
+            };
+            syncHeight();
+            new ResizeObserver(syncHeight).observe(textarea); // user can drag-resize
         },
         // validate before closing; keep the popup open (and the text) on errors
         onClosing: (popup) => {

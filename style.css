@@ -2349,7 +2349,7 @@ dialog.popup #stcm-popup-pin-input:focus {
 /* ---- Tag Conversions rule editor (line-number gutter) ---- */
 .stcm_conversion_editor {
     display: flex;
-    align-items: stretch;
+    align-items: flex-start; /* gutter height is set from the textarea in JS */
     width: 100%;
 }
 
