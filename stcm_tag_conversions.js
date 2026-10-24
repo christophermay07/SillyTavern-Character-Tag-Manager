@@ -83,6 +83,12 @@ function rulesToText(rules) {
     return rules.map(r => `${formatName(r.from)} -> ${r.to.map(formatName).join(', ')}`).join('\n');
 }
 
+// A source with spaces also matches the same name with underscores
+// ("test tag" matches "test_tag"). Existing underscores are left alone.
+function sourceVariants(from) {
+    return from.includes(' ') ? [from, from.replace(/ /g, '_')] : [from];
+}
+
 // Find separators and commas outside quotes.
 function scanLine(line) {
     const isBoundary = ch => ch === undefined || ch === '"' || /\s/.test(ch);
@@ -183,6 +189,13 @@ function parseRules(text) {
         const dup = seen.find(s => equalsIgnoreCaseAndAccents(s.from, from));
         if (dup) {
             addError(`Line ${lineNo}: duplicate source "${from}" (also on line ${dup.line}).`);
+            return;
+        }
+        const variants = sourceVariants(from);
+        const overlap = seen.find(s => sourceVariants(s.from).some(a => variants.some(b => equalsIgnoreCaseAndAccents(a, b))));
+        if (overlap) {
+            const shared = variants.find(v => v.includes('_')) ?? from;
+            addError(`Line ${lineNo}: source "${from}" overlaps line ${overlap.line} ("${overlap.from}"): both match "${shared}".`);
             return;
         }
         seen.push({ from, line: lineNo });
@@ -337,8 +350,9 @@ function resolveConversion(rules) {
     const duplicateTargets = new Map(); // chosen tag id → all matching tags
 
     for (const rule of rules) {
-        // ALL tags with the source name, not just the first
-        const sources = tags.filter(t => equalsIgnoreCaseAndAccents(t.name, rule.from));
+        // ALL tags with the source name (or its underscore variant), not just the first
+        const variants = sourceVariants(rule.from);
+        const sources = tags.filter(t => variants.some(v => equalsIgnoreCaseAndAccents(t.name, v)));
         if (!sources.length) { skipped.push(rule); continue; }
 
         const targets = rule.to.map(name => {
@@ -428,8 +442,9 @@ async function showPreview(plan) {
     }
     const multi = plan.applied.filter(a => a.sources.length > 1);
     if (multi.length) {
-        const names = multi.map(a => `<code>${e(a.rule.from)}</code> ×${a.sources.length}`).join(', ');
-        warnings.push(`<p><small>Several tags share a source name: ${names}. All of them are converted and deleted.</small></p>`);
+        const names = multi.map(a =>
+            `<code>${e(a.rule.from)}</code> (${a.sources.map(t => `<code>${e(t.name)}</code>`).join(', ')})`).join('; ');
+        warnings.push(`<p><small>Several tags match a source name: ${names}. All of them are converted and deleted.</small></p>`);
     }
 
     const ruleRows = plan.applied.map(a => {
