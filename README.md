@@ -61,7 +61,6 @@ dark_elf -> "phys:dark skin, ashen", race:elf
 - The separator is `->` with **a space on each side** (or a quote next to it). An arrow glued to other characters is part of the name, so tags like `SFW <-> NSFW` need no special treatment. `malepov->povg:male` (no spaces) is rejected with an error.
 - Targets are separated by commas.
 - Wrap a name in double quotes when it contains a spaced ` -> `, when a target contains a comma, or when a source starts with `#`. Inside quotes, write a literal `"` as `\"` and a backslash as `\\`.
-- The editor adds these quotes automatically when it shows saved rules, so saved rules always reload exactly.
 
 **Required setup:** in SillyTavern's **User Settings**, set **Import Card Tags** to **All**. Convert **deletes** the source tags, so the workflow depends on future imports re-creating them:
 - **All**: a deleted source tag (`dark_elf`) is re-created when the next card that has it is imported, and the next Convert run converts it. This is the intended setup.
@@ -91,7 +90,7 @@ The preview shows a warning when the setting is not **All**.
 - **Source tags that are tag folders** (Open/Closed folder type) are deleted like any other, which removes that folder. The preview warns about them.
 - **Convert is manual.** SillyTavern has no event after importing a card's tags, so newly imported cards are not converted automatically. Run Convert after importing.
 - **Card files are not changed.** Convert only changes SillyTavern's tag assignments, not the tags embedded in the card. Using SillyTavern's "Import tags" on a card again brings the source tags back; the next Convert run converts them again.
-- Rules are stored in SillyTavern's extension settings (`extensionSettings.stcm.tagConversions`) and persist across reloads.
+- Rules are stored in SillyTavern's extension settings and persist across reloads. The editor text is saved exactly as you typed it (`extensionSettings.stcm.tagConversionsText`), so comments, blank lines, quotes and order are kept; the parsed rules Convert uses are saved alongside (`extensionSettings.stcm.tagConversions`).
 
 ### Private Folders
 

@@ -5,6 +5,7 @@
 // user's own tag scheme, one-to-one or one-to-many, e.g.
 //     drow -> race:elf, phys:dark-skin
 //
+// * The editor text is kept verbatim in extensionSettings.stcm.tagConversionsText.
 // * Rules are stored by NAME in extensionSettings.stcm.tagConversions as
 //   [{ from: 'drow', to: ['race:elf', 'phys:dark-skin'] }, ...]. They never
 //   hold tag IDs: Convert deletes source tags, so the next card import
@@ -47,8 +48,17 @@ function getRules() {
     return Array.isArray(rules) ? rules : [];
 }
 
-function saveRules(rules) {
-    getStcmSettings().tagConversions = rules;
+// The editor text is saved verbatim so comments, blank lines, quoting and
+// order survive; the parsed rules are what Convert uses.
+function getRulesText() {
+    const text = getStcmSettings().tagConversionsText;
+    return typeof text === 'string' ? text : rulesToText(getRules()); // rules saved before text was kept
+}
+
+function saveRules(rules, text) {
+    const stcm = getStcmSettings();
+    stcm.tagConversions = rules;
+    stcm.tagConversionsText = text;
     getContext().saveSettingsDebounced();
 }
 
@@ -209,7 +219,7 @@ export async function openTagConversionsEditor() {
     const textarea = root.querySelector('textarea');
     const gutter = root.querySelector('.stcm_conversion_gutter');
     const errorsDiv = root.querySelector('.stcm_conversion_errors');
-    textarea.value = rulesToText(getRules());
+    textarea.value = getRulesText();
 
     // ---- line-number gutter -------------------------------------------------
     // Lines don't wrap (wrap="off"), so gutter line N always sits beside
@@ -307,7 +317,7 @@ export async function openTagConversionsEditor() {
     });
 
     if (result !== POPUP_RESULT.AFFIRMATIVE && result !== PREVIEW_AND_CONVERT) return;
-    saveRules(parsed.rules);
+    saveRules(parsed.rules, textarea.value);
     toastr.success(`Saved ${parsed.rules.length} conversion rule${parsed.rules.length === 1 ? '' : 's'}.`);
 
     if (result === PREVIEW_AND_CONVERT) await runConversion(parsed.rules);
