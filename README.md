@@ -52,7 +52,16 @@ malepov -> povg:male
 modern_day -> se:modern-day
 dark_elf -> phys:dark-skin, race:elf
 warrior_princess -> role:fighter, role:royalty, gen:female
+SFW <-> NSFW -> rating:any
+"Romance -> Drama" -> genre:romance, genre:drama
+dark_elf -> "phys:dark skin, ashen", race:elf
 ```
+
+**Rule syntax**
+- The separator is `->` with **a space on each side** (or a quote next to it). An arrow glued to other characters is part of the name, so tags like `SFW <-> NSFW` need no special treatment. `malepov->povg:male` (no spaces) is rejected with an error.
+- Targets are separated by commas.
+- Wrap a name in double quotes when it contains a spaced ` -> `, when a target contains a comma, or when a source starts with `#`. Inside quotes, write a literal `"` as `\"` and a backslash as `\\`.
+- The editor adds these quotes automatically when it shows saved rules, so saved rules always reload exactly.
 
 **Required setup:** in SillyTavern's **User Settings**, set **Import Card Tags** to **All**. Convert **deletes** the source tags, so the workflow depends on future imports re-creating them:
 - **All**: a deleted source tag (`dark_elf`) is re-created when the next card that has it is imported, and the next Convert run converts it. This is the intended setup.
@@ -64,7 +73,7 @@ The preview shows a warning when the setting is not **All**.
 
 **How to use**
 1. Open the Character / Tag Manager → Tags → **Tag Conversions**.
-2. Edit the rules, one per line: `source -> target1, target2, ...`. Click **Save**, or **Preview & Convert** to save and then run. Malformed lines (no `->`, more than one `->`, no source, no targets) and duplicate sources are reported by line number, and the editor stays open until they are fixed. A target equal to its own source and repeated targets are dropped. The text box doubles as import/export: copy the text out to back up or share your rules, paste it in to load them.
+2. Edit the rules, one per line: `source -> target1, target2, ...`. Click **Save**, or **Preview & Convert** to save and then run. Malformed lines (no spaced ` -> `, more than one, unclosed or misplaced quotes, no source, no targets) and duplicate sources are reported by line number, and the editor stays open until they are fixed. A target equal to its own source and repeated targets are dropped. The text box doubles as import/export: copy the text out to back up or share your rules, paste it in to load them.
 3. The preview lists each rule that matched (characters affected, each target marked *existing* or *new*), skipped rules (no tag with that source name), and warnings. Click **Convert** to apply.
 4. After converting, an **Undo** dialog restores the exact previous tags and assignments. A `pre-convert` backup is also saved and can be restored later from **Settings → Restore Tag Backup**.
 

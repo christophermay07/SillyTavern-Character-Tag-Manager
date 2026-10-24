@@ -54,9 +54,60 @@ function saveRules(rules) {
 
 // ---------------------------------------------------------------------------
 // text format:  source -> target1, target2   (# comments, blank lines ok)
+//
+// * The separator is "->" with whitespace (or a quote, or the line edge) on
+//   both sides, so tag names like "SFW <-> NSFW" work unquoted.
+// * Any name may be wrapped in double quotes; inside quotes, \" and \\ are
+//   escapes. Quotes are needed for a name containing a spaced " -> ", a
+//   target containing a comma, or a source starting with "#".
 // ---------------------------------------------------------------------------
+const NEEDS_QUOTES = /"|,|(^|\s)->(\s|$)|^#|^\s|\s$/;
+
+function formatName(name) {
+    return NEEDS_QUOTES.test(name)
+        ? `"${name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+        : name;
+}
+
 function rulesToText(rules) {
-    return rules.map(r => `${r.from} -> ${r.to.join(', ')}`).join('\n');
+    return rules.map(r => `${formatName(r.from)} -> ${r.to.map(formatName).join(', ')}`).join('\n');
+}
+
+// Find separators and commas outside quotes.
+function scanLine(line) {
+    const isBoundary = ch => ch === undefined || ch === '"' || /\s/.test(ch);
+    const seps = [];
+    const commas = [];
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuote) {
+            if (ch === '\\') i++;
+            else if (ch === '"') inQuote = false;
+        } else if (ch === '"') {
+            inQuote = true;
+        } else if (ch === ',') {
+            commas.push(i);
+        } else if (line.startsWith('->', i) && isBoundary(line[i - 1]) && isBoundary(line[i + 2])) {
+            seps.push(i);
+            i++;
+        }
+    }
+    return { seps, commas, unclosedQuote: inQuote };
+}
+
+// Returns the name, or null when quotes are misplaced (e.g. ab"cd").
+function parseName(raw) {
+    const s = raw.trim();
+    if (!s.startsWith('"')) return s.includes('"') ? null : s;
+    let name = '';
+    for (let i = 1; i < s.length; i++) {
+        const ch = s[i];
+        if (ch === '\\' && i + 1 < s.length) { name += s[++i]; continue; }
+        if (ch === '"') return i === s.length - 1 ? name.trim() : null;
+        name += ch;
+    }
+    return null;
 }
 
 function parseRules(text) {
@@ -69,20 +120,45 @@ function parseRules(text) {
         const line = raw.trim();
         if (!line || line.startsWith('#')) return;
 
-        const parts = line.split('->');
-        if (parts.length !== 2) {
-            errors.push(`Line ${lineNo}: must contain exactly one "->".`);
+        const { seps, commas, unclosedQuote } = scanLine(line);
+        if (unclosedQuote) {
+            errors.push(`Line ${lineNo}: unclosed quote.`);
             return;
         }
-        const from = parts[0].trim();
+        if (seps.length !== 1) {
+            errors.push(seps.length
+                ? `Line ${lineNo}: found ${seps.length} " -> " separators. Put quotes around a tag name that contains " -> ".`
+                : `Line ${lineNo}: missing separator. Use " -> " with a space on each side.`);
+            return;
+        }
+        const sep = seps[0];
+        const from = parseName(line.slice(0, sep));
+        if (from === null) {
+            errors.push(`Line ${lineNo}: misplaced quote in source. Quote the whole name, e.g. "my tag".`);
+            return;
+        }
         if (!from) {
-            errors.push(`Line ${lineNo}: missing source tag before "->".`);
+            errors.push(`Line ${lineNo}: missing source tag before " -> ".`);
+            return;
+        }
+
+        // split targets on commas outside quotes
+        const pieces = [];
+        let start = sep + 2;
+        for (const c of commas.filter(c => c > sep)) {
+            pieces.push(line.slice(start, c));
+            start = c + 1;
+        }
+        pieces.push(line.slice(start));
+        const names = pieces.map(parseName);
+        if (names.includes(null)) {
+            errors.push(`Line ${lineNo}: misplaced quote in targets. Quote each whole name, e.g. "my tag".`);
             return;
         }
 
         // drop empty targets, the source itself, and duplicates
         const to = [];
-        parts[1].split(',').map(s => s.trim()).filter(Boolean).forEach(name => {
+        names.filter(Boolean).forEach(name => {
             if (equalsIgnoreCaseAndAccents(name, from)) return;
             if (to.some(t => equalsIgnoreCaseAndAccents(t, name))) return;
             to.push(name);
@@ -113,7 +189,9 @@ export async function openTagConversionsEditor() {
     root.innerHTML = `
         <h3>Tag Conversions</h3>
         <p><small>
-            One rule per line: <code>source -> target1, target2</code>.
+            One rule per line: <code>source -> target1, target2</code> (spaces around <code>-></code> are required,
+            so names like <code>SFW &lt;-&gt; NSFW</code> work as-is). Wrap a name in double quotes if it contains a
+            spaced <code> -> </code> or (for targets) a comma: <code>"a -> b" -> x, "y, z"</code>.
             Lines starting with <code>#</code> are comments. Names match ignoring case and accents.
             <b>Convert</b> replaces each source tag with its targets on every character/group, creates missing
             targets, and <b>deletes the source tag</b>. Unmapped tags are untouched.
