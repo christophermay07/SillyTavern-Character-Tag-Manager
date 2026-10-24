@@ -37,6 +37,9 @@ SillyTavern Character Tag Manager is a SillyTavern UI plugin that provides a cen
 
 * **Bulk Delete Mode:** Enter bulk delete mode in either the tag or character/group section, select as many tags or characters/groups as you want, and delete them in two clicks—confirmation dialogs ensure safety.
 * **Automatic Cleanup:** When deleting tags, all associations with characters and groups are automatically removed.
+* **Select All Visible (tags):** In tag bulk delete mode, **Select All Visible** checks every tag currently shown in the list, i.e. the tags that pass the current Sort/Filter dropdown and search box. Click it again (**Deselect All Visible**) to uncheck them. Typical cleanup: Sort → **Tags with 0 Characters** → **Bulk Delete** → **Select All Visible** → **Delete Selected**.
+
+> **Selections survive filter changes.** Tags you checked stay selected when you change the search or sort/filter, even though they are no longer shown, and **Delete Selected deletes all of them**, not just the visible ones. Selecting all under one filter and then switching filters and selecting more adds to the same selection. To guard against surprises, the confirmation dialog lists every selected tag with its character count, marks tags that are not currently visible, shows "N selected, M not currently visible", and shows a red warning if any selected tag is still assigned to characters. Read it before confirming. You can still click **Undo** in the next dialog.
 
 ### Private Folders
 

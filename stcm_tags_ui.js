@@ -153,8 +153,10 @@ export function renderTagSection() {
             cb.addEventListener('change', () => {
                 cb.checked ? selectedBulkDeleteTags.add(cb.value)
                            : selectedBulkDeleteTags.delete(cb.value);
+                syncBulkSelectAllBtn();
             });
         });
+        syncBulkSelectAllBtn();
     }
     if (isMergeMode) {
         content.querySelectorAll('input[name="mergePrimary"]').forEach(r =>
@@ -169,6 +171,33 @@ export function renderTagSection() {
     }
 
     accountStorage.setItem('SelectedNavTab', 'rm_button_characters');
+}
+
+// ---------------------------------------------------------------------------
+// bulk-delete "Select All Visible" helpers
+// "Visible" = the checkboxes currently rendered, i.e. the tags that pass the
+// current sort-mode filter and search. Tags selected under an earlier filter
+// stay in selectedBulkDeleteTags even when they are no longer rendered.
+// ---------------------------------------------------------------------------
+function getVisibleBulkDeleteBoxes() {
+    return [...document.querySelectorAll('#characterTagManagerContent .bulkDeleteTagCheckbox')];
+}
+
+function syncBulkSelectAllBtn() {
+    const btn = document.getElementById('selectAllBulkDeleteTags');
+    if (!btn) return;
+    const boxes = getVisibleBulkDeleteBoxes();
+    const allOn = boxes.length > 0 && boxes.every(cb => cb.checked);
+    btn.innerHTML = allOn
+        ? '<i class="fa-solid fa-xmark"></i> Deselect All Visible'
+        : '<i class="fa-solid fa-check-double"></i> Select All Visible';
+}
+
+function setBulkDeleteButtonsVisible(modalRoot, active) {
+    modalRoot.querySelector('#cancelBulkDeleteTags').style.display = active ? '' : 'none';
+    modalRoot.querySelector('#confirmBulkDeleteTags').style.display = active ? '' : 'none';
+    modalRoot.querySelector('#selectAllBulkDeleteTags').style.display = active ? '' : 'none';
+    modalRoot.querySelector('#startBulkDeleteTags').style.display = active ? 'none' : '';
 }
 
 // ---------------------------------------------------------------------------
@@ -742,19 +771,28 @@ export function attachTagSectionListeners(modalRoot) {
     modalRoot.querySelector('#startBulkDeleteTags')
         ?.addEventListener('click', () => { isBulkDeleteMode = true;
             selectedBulkDeleteTags.clear();
-            modalRoot.querySelector('#cancelBulkDeleteTags').style.display = '';
-            modalRoot.querySelector('#confirmBulkDeleteTags').style.display = '';
-            modalRoot.querySelector('#startBulkDeleteTags').style.display = 'none';
+            setBulkDeleteButtonsVisible(modalRoot, true);
             renderTagSection();
         });
 
     modalRoot.querySelector('#cancelBulkDeleteTags')
         ?.addEventListener('click', () => { isBulkDeleteMode = false;
             selectedBulkDeleteTags.clear();
-            modalRoot.querySelector('#cancelBulkDeleteTags').style.display = 'none';
-            modalRoot.querySelector('#confirmBulkDeleteTags').style.display = 'none';
-            modalRoot.querySelector('#startBulkDeleteTags').style.display = '';
+            setBulkDeleteButtonsVisible(modalRoot, false);
             renderTagSection();
+        });
+
+    // toggle every visible (filtered) checkbox; hidden selections are kept
+    modalRoot.querySelector('#selectAllBulkDeleteTags')
+        ?.addEventListener('click', () => {
+            const boxes = getVisibleBulkDeleteBoxes();
+            const allOn = boxes.length > 0 && boxes.every(cb => cb.checked);
+            boxes.forEach(cb => {
+                cb.checked = !allOn;
+                allOn ? selectedBulkDeleteTags.delete(cb.value)
+                      : selectedBulkDeleteTags.add(cb.value);
+            });
+            syncBulkSelectAllBtn();
         });
 
         // confirm bulk-delete (with Undo)
@@ -767,10 +805,26 @@ export function attachTagSectionListeners(modalRoot) {
                 const toDelete = tags.filter(t => selectedBulkDeleteTags.has(t.id));
                 const snapshot = buildTagDeletionSnapshot(toDelete.map(t => t.id));
 
-                const listHtml = toDelete.map(t => `<li>${escapeHtml(t.name)}</li>`).join('');
+                // Safeguard: the selection survives filter changes, so warn
+                // about in-use tags and selections that are no longer visible.
+                const visibleIds = new Set(getVisibleBulkDeleteBoxes().map(cb => cb.value));
+                const hiddenCount = toDelete.filter(t => !visibleIds.has(t.id)).length;
+                const inUse = snapshot.items.filter(it => it.charIds.length > 0);
+
+                const listHtml = snapshot.items.map(({ tag, charIds }) => {
+                    const n = charIds.length;
+                    const hidden = visibleIds.has(tag.id) ? '' : ' <small>(not currently visible)</small>';
+                    const count = `<small${n ? ' style="color:#e57373;"' : ''}>(${n} character${n === 1 ? '' : 's'})</small>`;
+                    return `<li>${escapeHtml(tag.name)} ${count}${hidden}</li>`;
+                }).join('');
+                const warnHtml = inUse.length
+                    ? `<p style="color:#e57373;font-weight:bold;">Warning: ${inUse.length} selected tag${inUse.length>1?'s are':' is'} still assigned to characters.</p>`
+                    : '';
                 const html = document.createElement('div');
                 html.innerHTML = `
                     <h3>Bulk delete</h3>
+                    ${warnHtml}
+                    <p>${toDelete.length} selected, ${hiddenCount} not currently visible.</p>
                     <p>Delete the following ${toDelete.length} tag${toDelete.length>1?'s':''} and remove them from all characters?</p>
                     <ul style="margin-left:1.2em">${listHtml}</ul>
                     <p style="color:#e57373;">This cannot be undone (unless you click Undo in the next step).</p>
@@ -791,9 +845,7 @@ export function attachTagSectionListeners(modalRoot) {
 
                 isBulkDeleteMode = false;
                 selectedBulkDeleteTags.clear();
-                modalRoot.querySelector('#cancelBulkDeleteTags').style.display = 'none';
-                modalRoot.querySelector('#confirmBulkDeleteTags').style.display = 'none';
-                modalRoot.querySelector('#startBulkDeleteTags').style.display = '';
+                setBulkDeleteButtonsVisible(modalRoot, false);
 
                 await callSaveandReload();
                 renderTagSection();

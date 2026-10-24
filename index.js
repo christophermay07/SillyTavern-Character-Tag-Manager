@@ -116,6 +116,9 @@ function openCharacterTagManagerModal() {
                     <i class="fa-solid fa-trash"></i>Bulk Delete
                 </button>
                 <button id="cancelBulkDeleteTags" class="stcm_menu_button stcm_margin_left interactable" style="display: none;" tabindex="0">Cancel Delete</button>
+                <button id="selectAllBulkDeleteTags" class="stcm_menu_button stcm_margin_left interactable" style="display: none;" tabindex="0">
+                    <i class="fa-solid fa-check-double"></i> Select All Visible
+                </button>
                 <button id="confirmBulkDeleteTags" class="stcm_menu_button stcm_margin_left interactable red" style="display: none;" tabindex="0">
                     <i class="fa-solid fa-trash"></i>Delete Selected
                 </button>
