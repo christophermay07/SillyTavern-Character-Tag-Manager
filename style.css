@@ -2345,3 +2345,61 @@ dialog.popup #stcm-popup-pin-input:focus {
       }
 
 }
+
+/* ---- Tag Conversions rule editor (line-number gutter) ---- */
+.stcm_conversion_editor {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+}
+
+.stcm_conversion_gutter {
+    flex: 0 0 auto;
+    min-width: 3.2em;
+    padding: 0 0.5em 3em; /* bottom room for the textarea's horizontal scrollbar */
+    overflow: hidden;
+    box-sizing: border-box;
+    text-align: right;
+    font-family: monospace;
+    line-height: 1.5;
+    color: var(--SmartThemeBodyColor);
+    border-right: 1px solid var(--SmartThemeBorderColor);
+    user-select: none;
+}
+
+.stcm_conversion_gutter > div {
+    opacity: 0.6;
+}
+
+.stcm_conversion_gutter > .stcm_conversion_error_line {
+    color: #e57373;
+    font-weight: bold;
+    opacity: 1;
+    background: rgba(229, 115, 115, 0.15);
+}
+
+.stcm_conversion_editor textarea.stcm_conversion_rules {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-family: monospace;
+    line-height: 1.5;
+    white-space: pre;
+    overflow: auto;
+    resize: vertical;
+}
+
+.stcm_conversion_errors {
+    color: #e57373;
+    margin-top: 0.5em;
+}
+
+.stcm_conversion_error_link {
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+.stcm_conversion_error_link:hover,
+.stcm_conversion_error_link:focus {
+    text-decoration: underline;
+}

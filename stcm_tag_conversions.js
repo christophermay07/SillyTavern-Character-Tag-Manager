@@ -114,19 +114,21 @@ function parseRules(text) {
     const rules = [];
     const errors = [];
     const seen = []; // { from, line }
+    let lineNo = 0;
+    const addError = text => errors.push({ line: lineNo, text });
 
     text.split('\n').forEach((raw, i) => {
-        const lineNo = i + 1;
+        lineNo = i + 1;
         const line = raw.trim();
         if (!line || line.startsWith('#')) return;
 
         const { seps, commas, unclosedQuote } = scanLine(line);
         if (unclosedQuote) {
-            errors.push(`Line ${lineNo}: unclosed quote.`);
+            addError(`Line ${lineNo}: unclosed quote.`);
             return;
         }
         if (seps.length !== 1) {
-            errors.push(seps.length
+            addError(seps.length
                 ? `Line ${lineNo}: found ${seps.length} " -> " separators. Put quotes around a tag name that contains " -> ".`
                 : `Line ${lineNo}: missing separator. Use " -> " with a space on each side.`);
             return;
@@ -134,11 +136,11 @@ function parseRules(text) {
         const sep = seps[0];
         const from = parseName(line.slice(0, sep));
         if (from === null) {
-            errors.push(`Line ${lineNo}: misplaced quote in source. Quote the whole name, e.g. "my tag".`);
+            addError(`Line ${lineNo}: misplaced quote in source. Quote the whole name, e.g. "my tag".`);
             return;
         }
         if (!from) {
-            errors.push(`Line ${lineNo}: missing source tag before " -> ".`);
+            addError(`Line ${lineNo}: missing source tag before " -> ".`);
             return;
         }
 
@@ -152,7 +154,7 @@ function parseRules(text) {
         pieces.push(line.slice(start));
         const names = pieces.map(parseName);
         if (names.includes(null)) {
-            errors.push(`Line ${lineNo}: misplaced quote in targets. Quote each whole name, e.g. "my tag".`);
+            addError(`Line ${lineNo}: misplaced quote in targets. Quote each whole name, e.g. "my tag".`);
             return;
         }
 
@@ -164,13 +166,13 @@ function parseRules(text) {
             to.push(name);
         });
         if (!to.length) {
-            errors.push(`Line ${lineNo}: needs at least one target tag (other than the source).`);
+            addError(`Line ${lineNo}: needs at least one target tag (other than the source).`);
             return;
         }
 
         const dup = seen.find(s => equalsIgnoreCaseAndAccents(s.from, from));
         if (dup) {
-            errors.push(`Line ${lineNo}: duplicate source "${from}" (also on line ${dup.line}).`);
+            addError(`Line ${lineNo}: duplicate source "${from}" (also on line ${dup.line}).`);
             return;
         }
         seen.push({ from, line: lineNo });
@@ -197,14 +199,74 @@ export async function openTagConversionsEditor() {
             targets, and <b>deletes the source tag</b>. Unmapped tags are untouched.
             Copy/paste this text to back up or share your rules.
         </small></p>
-        <textarea class="text_pole stcm_conversion_rules" rows="16" spellcheck="false"
-            placeholder="malepov -> povg:male&#10;drow -> race:elf, phys:dark-skin"
-            style="width:100%;font-family:monospace;"></textarea>
-        <div class="stcm_conversion_errors" style="color:#e57373;white-space:pre-line;"></div>
+        <div class="stcm_conversion_editor">
+            <div class="stcm_conversion_gutter" aria-hidden="true"></div>
+            <textarea class="text_pole stcm_conversion_rules" rows="16" spellcheck="false" wrap="off"
+                placeholder="malepov -> povg:male&#10;drow -> race:elf, phys:dark-skin"></textarea>
+        </div>
+        <div class="stcm_conversion_errors"></div>
     `;
     const textarea = root.querySelector('textarea');
+    const gutter = root.querySelector('.stcm_conversion_gutter');
     const errorsDiv = root.querySelector('.stcm_conversion_errors');
     textarea.value = rulesToText(getRules());
+
+    // ---- line-number gutter -------------------------------------------------
+    // Lines don't wrap (wrap="off"), so gutter line N always sits beside
+    // textarea line N; the gutter only has to follow the vertical scroll.
+    let errorLines = new Set();
+    const renderGutter = () => {
+        const count = textarea.value.split('\n').length;
+        let html = '';
+        for (let n = 1; n <= count; n++) {
+            html += `<div${errorLines.has(n) ? ' class="stcm_conversion_error_line"' : ''}>${n}</div>`;
+        }
+        gutter.innerHTML = html;
+        gutter.scrollTop = textarea.scrollTop;
+    };
+    const lineHeightPx = () => parseFloat(getComputedStyle(textarea).lineHeight) || 20;
+
+    // select line N and scroll it into view
+    const goToLine = (n) => {
+        const lines = textarea.value.split('\n');
+        const start = lines.slice(0, n - 1).reduce((sum, l) => sum + l.length + 1, 0);
+        textarea.focus();
+        textarea.setSelectionRange(start, start + (lines[n - 1]?.length ?? 0));
+        textarea.scrollTop = Math.max(0, (n - 1) * lineHeightPx() - textarea.clientHeight / 3);
+        textarea.scrollLeft = 0;
+    };
+
+    const showErrors = (errors) => {
+        errorLines = new Set(errors.map(e => e.line));
+        errorsDiv.innerHTML = '';
+        if (errors.length) {
+            const head = document.createElement('div');
+            head.textContent = 'Fix these lines before saving (click one to jump to it):';
+            errorsDiv.appendChild(head);
+            errors.forEach(e => {
+                const row = document.createElement('div');
+                row.className = 'stcm_conversion_error_link';
+                row.textContent = e.text;
+                row.tabIndex = 0;
+                row.addEventListener('click', () => goToLine(e.line));
+                row.addEventListener('keydown', ev => { if (ev.key === 'Enter') goToLine(e.line); });
+                errorsDiv.appendChild(row);
+            });
+        }
+        renderGutter();
+    };
+
+    // after a failed save, re-check as the user edits so the red marks follow
+    let validateLive = false;
+    let liveTimer;
+    textarea.addEventListener('input', () => {
+        renderGutter();
+        if (!validateLive) return;
+        clearTimeout(liveTimer);
+        liveTimer = setTimeout(() => showErrors(parseRules(textarea.value).errors), 300);
+    });
+    textarea.addEventListener('scroll', () => { gutter.scrollTop = textarea.scrollTop; });
+    renderGutter();
 
     let parsed = null;
     const result = await callGenericPopup(root, POPUP_TYPE.CONFIRM, '', {
@@ -213,12 +275,22 @@ export async function openTagConversionsEditor() {
         wide: true,
         allowVerticalScrolling: true,
         customButtons: [{ text: 'Preview & Convert', result: PREVIEW_AND_CONVERT, icon: 'fa-right-left' }],
+        // Match the gutter's vertical metrics to the textarea as styled by the
+        // active theme, so numbers stay aligned.
+        onOpen: () => {
+            const cs = getComputedStyle(textarea);
+            gutter.style.paddingTop = `calc(${cs.paddingTop} + ${cs.borderTopWidth})`;
+            gutter.style.fontSize = cs.fontSize;
+            gutter.style.lineHeight = cs.lineHeight;
+        },
         // validate before closing; keep the popup open (and the text) on errors
         onClosing: (popup) => {
             if (popup.result !== POPUP_RESULT.AFFIRMATIVE && popup.result !== PREVIEW_AND_CONVERT) return true;
             parsed = parseRules(textarea.value);
             if (parsed.errors.length) {
-                errorsDiv.textContent = `Fix these lines before saving:\n${parsed.errors.join('\n')}`;
+                validateLive = true;
+                showErrors(parsed.errors);
+                goToLine(parsed.errors[0].line);
                 return false;
             }
             return true;
