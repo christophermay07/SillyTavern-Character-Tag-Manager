@@ -33,6 +33,7 @@ import {
 } from "../../../utils.js"
 
 import { convertTagToRealFolder} from './stcm_folders.js';
+import { openTagConversionsEditor } from './stcm_tag_conversions.js';
 
 import { callSaveandReload } from "./index.js";
 
@@ -739,6 +740,10 @@ export function attachTagSectionListeners(modalRoot) {
     // create-tag button
     modalRoot.querySelector('#createNewTagBtn')
         ?.addEventListener('click', promptCreateTag);
+
+    // tag conversion rules editor
+    modalRoot.querySelector('#openTagConversions')
+        ?.addEventListener('click', openTagConversionsEditor);
 
     // merge / bulk-delete buttons -----------------------------
 

@@ -112,6 +112,9 @@ function openCharacterTagManagerModal() {
                     <i class="fa-solid fa-object-group"></i>Merge Tags
                 </button>
                 <button id="cancelMergeTags" class="stcm_menu_button stcm_margin_left interactable" style="display: none;" tabindex="0">Cancel Merge</button>
+                <button id="openTagConversions" class="stcm_menu_button stcm_margin_left interactable" tabindex="0" title="Convert imported tags to your own tags using saved rules">
+                    <i class="fa-solid fa-right-left"></i>Tag Conversions
+                </button>
                 <button id="startBulkDeleteTags" class="stcm_menu_button stcm_margin_left interactable" tabindex="0">
                     <i class="fa-solid fa-trash"></i>Bulk Delete
                 </button>

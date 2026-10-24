@@ -12,6 +12,7 @@ SillyTavern Character Tag Manager is a SillyTavern UI plugin that provides a cen
 - **Create new tags** with custom background and text color pickers
 - **Inline tag name editing** directly in the tag list
 - **Merge tags** (toggle merge mode, select one as primary and multiple as merge targets; all assignments move to primary)
+- **Tag Conversions**: saved rules that turn imported card tags into your own tags, one-to-one or one-to-many (see [Tag Conversions](#tag-conversions-map-imported-tags-to-your-own))
 - **Delete tags** with confirmation and automatic unassignment from all characters/groups
 - **Add notes to tags** via an inline "Notes" toggle button per tag, with persistent storage
 - **Edit tag folders**: set folder type (Open, Closed, or None) for visual grouping in other tag views
@@ -40,6 +41,48 @@ SillyTavern Character Tag Manager is a SillyTavern UI plugin that provides a cen
 * **Select All Visible (tags):** In tag bulk delete mode, **Select All Visible** checks every tag currently shown in the list, i.e. the tags that pass the current Sort/Filter dropdown and search box. Click it again (**Deselect All Visible**) to uncheck them. Typical cleanup: Sort → **Tags with 0 Characters** → **Bulk Delete** → **Select All Visible** → **Delete Selected**.
 
 > **Selections survive filter changes.** Tags you checked stay selected when you change the search or sort/filter, even though they are no longer shown, and **Delete Selected deletes all of them**, not just the visible ones. Selecting all under one filter and then switching filters and selecting more adds to the same selection. To guard against surprises, the confirmation dialog lists every selected tag with its character count, marks tags that are not currently visible, shows "N selected, M not currently visible", and shows a red warning if any selected tag is still assigned to characters. Read it before confirming. You can still click **Undo** in the next dialog.
+
+### Tag Conversions (map imported tags to your own)
+
+Cards arrive with their creators' tags (`malepov`, `dark_elf`, `modern_day`, ...). Tag Conversions lets you define once how each of those maps onto your own tag scheme, then convert your whole library with one click. A rule can map one tag to one tag, or one tag to several:
+
+```
+# lines starting with # are comments
+malepov -> povg:male
+modern_day -> se:modern-day
+dark_elf -> phys:dark-skin, race:elf
+warrior_princess -> role:fighter, role:royalty, gen:female
+```
+
+**Required setup:** in SillyTavern's **User Settings**, set **Import Card Tags** to **All**. Convert **deletes** the source tags, so the workflow depends on future imports re-creating them:
+- **All**: a deleted source tag (`dark_elf`) is re-created when the next card that has it is imported, and the next Convert run converts it. This is the intended setup.
+- **Existing**: once Convert has deleted `dark_elf`, future imports **silently drop it**, so your rule never sees it and that information is lost.
+- **Ask**: `dark_elf` is offered as a new tag on every import.
+- **None**: cards' tags are never imported, so there is nothing to convert.
+
+The preview shows a warning when the setting is not **All**.
+
+**How to use**
+1. Open the Character / Tag Manager → Tags → **Tag Conversions**.
+2. Edit the rules, one per line: `source -> target1, target2, ...`. Click **Save**, or **Preview & Convert** to save and then run. Malformed lines (no `->`, more than one `->`, no source, no targets) and duplicate sources are reported by line number, and the editor stays open until they are fixed. A target equal to its own source and repeated targets are dropped. The text box doubles as import/export: copy the text out to back up or share your rules, paste it in to load them.
+3. The preview lists each rule that matched (characters affected, each target marked *existing* or *new*), skipped rules (no tag with that source name), and warnings. Click **Convert** to apply.
+4. After converting, an **Undo** dialog restores the exact previous tags and assignments. A `pre-convert` backup is also saved and can be restored later from **Settings → Restore Tag Backup**.
+
+**What Convert does**
+- On every character and group that has a source tag: removes the source tag and adds each target (never twice). Other tags keep their order.
+- Creates target tags that don't exist yet (they appear at the end under manual tag sort).
+- Deletes the source tags along with their notes and private-folder flags. **Notes on a source tag are not carried over to its targets.**
+- Leaves unmapped tags and characters without source tags alone. Running Convert again only acts on source tags that have reappeared since.
+
+**Assumptions and edge cases**
+- **Rules are matched by tag name, ignoring case and accents** (the same way SillyTavern matches tags). They never store tag IDs, so a source tag that was deleted and later re-imported (with a new ID) is still caught.
+- **Several tags with the source name** (e.g. `elf` and `Élf`): all of them are converted and deleted.
+- **Several tags with a target name** (e.g. two `race:elf` tags): Convert uses the first one in SillyTavern's tag list, the same one SillyTavern uses when importing, and leaves the others untouched. The preview shows a prominent warning listing each duplicate with its ID, character count, and creation date. This usually means duplicates worth cleaning up with **Merge Tags**.
+- **Rules don't chain.** All rules are evaluated against the tags as they were before the run. With `A -> B` and `B -> C`, characters that had `A` end up with `B` (not `C`), characters that had `B` end up with `C`, and tag `B` is kept because another rule targets it. The preview warns about chained rules.
+- **Source tags that are tag folders** (Open/Closed folder type) are deleted like any other, which removes that folder. The preview warns about them.
+- **Convert is manual.** SillyTavern has no event after importing a card's tags, so newly imported cards are not converted automatically. Run Convert after importing.
+- **Card files are not changed.** Convert only changes SillyTavern's tag assignments, not the tags embedded in the card. Using SillyTavern's "Import tags" on a card again brings the source tags back; the next Convert run converts them again.
+- Rules are stored in SillyTavern's extension settings (`extensionSettings.stcm.tagConversions`) and persist across reloads.
 
 ### Private Folders
 
@@ -203,7 +246,7 @@ The Character/Tag Manager extension adds a configurable settings panel to SillyT
   Control whether recent chats are displayed on SillyTavern's welcome screen.
 
 - **Tag Backups (Restore Tag Backup)**  
-  Snapshots of all tags and tag assignments (`tags` + `tag_map`) are kept in extension settings: one on install, one per day on launch, and one before each **Restore** (`pre-restore`). The **10 most recent** are kept; older ones are dropped. Each entry is labeled with its date, reason, and counts. Restoring replaces your current tags and assignments with the snapshot, keeping every stored tag field (colors, folder type, sort order, creation date, filter state). Folders, notes, and character cards are not touched.
+  Snapshots of all tags and tag assignments (`tags` + `tag_map`) are kept in extension settings: one on install, one per day on launch, one before each **Restore** (`pre-restore`), and one before each **Tag Conversions** run (`pre-convert`). The **10 most recent** are kept; older ones are dropped. Each entry is labeled with its date, reason, and counts. Restoring replaces your current tags and assignments with the snapshot, keeping every stored tag field (colors, folder type, sort order, creation date, filter state). Folders, notes, and character cards are not touched.
 
 All settings are saved persistently and applied in real-time. You’ll find the settings panel under the "Extensions" section in SillyTavern’s settings menu.
 
