@@ -2403,3 +2403,32 @@ dialog.popup #stcm-popup-pin-input:focus {
 .stcm_conversion_error_link:focus {
     text-decoration: underline;
 }
+
+.stcm_conversion_colors {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em 1em;
+    margin-top: 0.75em;
+}
+
+.stcm_conversion_colors label {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+}
+
+.stcm_conversion_colors input.text_pole {
+    width: 10em;
+    margin: 0;
+}
+
+.stcm_conversion_colors input.stcm_invalid_color {
+    outline: 2px solid #e57373;
+}
+
+.stcm_new_tag_sample {
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--SmartThemeBorderColor);
+}

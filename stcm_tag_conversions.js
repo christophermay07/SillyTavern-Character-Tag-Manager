@@ -48,6 +48,20 @@ function getRules() {
     return Array.isArray(rules) ? rules : [];
 }
 
+// Colors given to tags Convert creates, so new tags stand out (e.g. a
+// "TODO:..." target). Empty string = ST's default tag colors.
+function getNewTagColors() {
+    const c = getStcmSettings().tagConversionNewTagColors || {};
+    return { bg: typeof c.bg === 'string' ? c.bg : '', fg: typeof c.fg === 'string' ? c.fg : '' };
+}
+
+function saveNewTagColors(colors) {
+    getStcmSettings().tagConversionNewTagColors = colors;
+    getContext().saveSettingsDebounced();
+}
+
+const isValidColor = v => !v || CSS.supports('color', v);
+
 // The editor text is saved verbatim so comments, blank lines, quoting and
 // order survive; the parsed rules are what Convert uses.
 function getRulesText() {
@@ -228,10 +242,35 @@ export async function openTagConversionsEditor() {
                 placeholder="malepov -> povg:male&#10;drow -> race:elf, phys:dark-skin"></textarea>
         </div>
         <div class="stcm_conversion_errors"></div>
+        <div class="stcm_conversion_colors">
+            <span>Colors for newly created tags:</span>
+            <label>Background <input type="text" class="text_pole stcm_new_tag_bg" placeholder="default" spellcheck="false"></label>
+            <label>Text <input type="text" class="text_pole stcm_new_tag_fg" placeholder="default" spellcheck="false"></label>
+            <span class="stcm_new_tag_sample">TODO:example</span>
+        </div>
+        <div><small>Any CSS color (<code>#ff4d4d</code>, <code>orange</code>, <code>rgba(255,0,0,.5)</code>). Leave blank for default colors. Saved with Save / Preview &amp; Convert.</small></div>
     `;
     const textarea = root.querySelector('textarea');
     const gutter = root.querySelector('.stcm_conversion_gutter');
     const errorsDiv = root.querySelector('.stcm_conversion_errors');
+    const bgInput = root.querySelector('.stcm_new_tag_bg');
+    const fgInput = root.querySelector('.stcm_new_tag_fg');
+    const sample = root.querySelector('.stcm_new_tag_sample');
+    ({ bg: bgInput.value, fg: fgInput.value } = getNewTagColors());
+
+    // sample chip shows how a new tag will look; invalid colors are outlined red
+    const renderSample = () => {
+        for (const input of [bgInput, fgInput]) {
+            input.classList.toggle('stcm_invalid_color', !isValidColor(input.value.trim()));
+        }
+        const bg = bgInput.value.trim();
+        const fg = fgInput.value.trim();
+        sample.style.background = isValidColor(bg) ? bg : '';
+        sample.style.color = isValidColor(fg) ? fg : '';
+    };
+    bgInput.addEventListener('input', renderSample);
+    fgInput.addEventListener('input', renderSample);
+    renderSample();
     textarea.value = getRulesText();
 
     // ---- line-number gutter -------------------------------------------------
@@ -319,6 +358,13 @@ export async function openTagConversionsEditor() {
         onClosing: (popup) => {
             if (popup.result !== POPUP_RESULT.AFFIRMATIVE && popup.result !== PREVIEW_AND_CONVERT) return true;
             parsed = parseRules(textarea.value);
+            const badColors = [[bgInput, 'Background'], [fgInput, 'Text']]
+                .filter(([input]) => !isValidColor(input.value.trim()))
+                .map(([input, label]) => `${label} color "${escapeHtml(input.value.trim())}" is not a valid CSS color.`);
+            if (badColors.length) {
+                toastr.error(badColors.join('<br>'), 'Tag Conversions', { escapeHtml: false });
+                return false;
+            }
             if (parsed.errors.length) {
                 validateLive = true;
                 showErrors(parsed.errors);
@@ -331,6 +377,7 @@ export async function openTagConversionsEditor() {
 
     if (result !== POPUP_RESULT.AFFIRMATIVE && result !== PREVIEW_AND_CONVERT) return;
     saveRules(parsed.rules, textarea.value);
+    saveNewTagColors({ bg: bgInput.value.trim(), fg: fgInput.value.trim() });
     toastr.success(`Saved ${parsed.rules.length} conversion rule${parsed.rules.length === 1 ? '' : 's'}.`);
 
     if (result === PREVIEW_AND_CONVERT) await runConversion(parsed.rules);
@@ -403,6 +450,8 @@ function resolveConversion(rules) {
 async function showPreview(plan) {
     const e = escapeHtml;
     const warnings = [];
+    const colors = getNewTagColors();
+    const newTagStyle = `padding:0 4px;border-radius:4px;${colors.bg ? `background:${e(colors.bg)};` : ''}${colors.fg ? `color:${e(colors.fg)};` : ''}`;
 
     if (plan.duplicateTargets.length) {
         const items = plan.duplicateTargets.map(([chosenId, matches]) => {
@@ -448,7 +497,9 @@ async function showPreview(plan) {
     }
 
     const ruleRows = plan.applied.map(a => {
-        const targets = a.targets.map(t => `${e(t.name)} <small>(${t.isNew ? 'new' : 'existing'})</small>`).join(', ');
+        const targets = a.targets.map(t => t.isNew
+            ? `<span style="${newTagStyle}">${e(t.name)}</span> <small>(new)</small>`
+            : `${e(t.name)} <small>(existing)</small>`).join(', ');
         return `<li><code>${e(a.rule.from)}</code> → ${targets} <small>[${a.entityKeys.length} characters]</small></li>`;
     }).join('');
 
@@ -491,6 +542,7 @@ function applyConversion(plan) {
     };
 
     // 1) create missing targets with ST's full tag shape (see ST newTag())
+    const newColors = getNewTagColors();
     let sortOrder = Math.max(0, ...tags.map(t => Number.isFinite(t.sort_order) ? t.sort_order : 0));
     for (const t of plan.newTargets) {
         tags.push({
@@ -500,8 +552,8 @@ function applyConversion(plan) {
             filter_state: DEFAULT_FILTER_STATE,
             sort_order: ++sortOrder,
             is_hidden_on_character_card: false,
-            color: '',
-            color2: '',
+            color: newColors.bg,
+            color2: newColors.fg,
             create_date: Date.now(),
         });
     }

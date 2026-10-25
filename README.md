@@ -73,12 +73,13 @@ The preview shows a warning when the setting is not **All**.
 **How to use**
 1. Open the Character / Tag Manager → Tags → **Tag Conversions**.
 2. Edit the rules, one per line: `source -> target1, target2, ...`. Click **Save**, or **Preview & Convert** to save and then run. Malformed lines (no spaced ` -> `, more than one, unclosed or misplaced quotes, no source, no targets) and duplicate sources are reported by line number, and the editor stays open until they are fixed. The editor shows line numbers on the left (long lines scroll sideways instead of wrapping, so numbers stay lined up). Lines with errors get red numbers, the first error is selected automatically, and clicking an error message jumps to its line. After a failed save, errors re-check as you type. A target equal to its own source and repeated targets are dropped. The text box doubles as import/export: copy the text out to back up or share your rules, paste it in to load them.
-3. The preview lists each rule that matched (characters affected, each target marked *existing* or *new*), skipped rules (no tag with that source name), and warnings. Click **Convert** to apply.
+   **Colors for newly created tags:** below the rules are two fields, **Background** and **Text**, applied to every tag Convert creates, so new tags stand out in your lists. This is handy for deliberate placeholders: if you don't keep a `non-human` tag, a rule like `non-human -> TODO:non-human` plus a red background flags every card you still need to sort out. The fields take any CSS color (`#ff4d4d`, `orange`, `rgba(255,0,0,.5)`); a sample chip shows the result, and an invalid color is outlined red and blocks saving. Leave a field blank for SillyTavern's default tag color. The colors are remembered (saved with **Save** or **Preview & Convert**; **Cancel** discards changes). They only apply to tags created by Convert from then on: existing tags, including existing targets, keep their colors, and changing the fields later doesn't recolor tags already created.
+3. The preview lists each rule that matched (characters affected, each target marked *existing* or *new*; new ones are shown in the new-tag colors), skipped rules (no tag with that source name), and warnings. Click **Convert** to apply.
 4. After converting, an **Undo** dialog restores the exact previous tags and assignments. A `pre-convert` backup is also saved and can be restored later from **Settings → Restore Tag Backup**.
 
 **What Convert does**
 - On every character and group that has a source tag: removes the source tag and adds each target (never twice). Other tags keep their order.
-- Creates target tags that don't exist yet (they appear at the end under manual tag sort).
+- Creates target tags that don't exist yet, using the new-tag colors if set (they appear at the end under manual tag sort).
 - Deletes the source tags along with their notes and private-folder flags. **Notes on a source tag are not carried over to its targets.**
 - Leaves unmapped tags and characters without source tags alone. Running Convert again only acts on source tags that have reappeared since.
 
@@ -91,7 +92,7 @@ The preview shows a warning when the setting is not **All**.
 - **Source tags that are tag folders** (Open/Closed folder type) are deleted like any other, which removes that folder. The preview warns about them.
 - **Convert is manual.** SillyTavern has no event after importing a card's tags, so newly imported cards are not converted automatically. Run Convert after importing.
 - **Card files are not changed.** Convert only changes SillyTavern's tag assignments, not the tags embedded in the card. Using SillyTavern's "Import tags" on a card again brings the source tags back; the next Convert run converts them again.
-- Rules are stored in SillyTavern's extension settings and persist across reloads. The editor text is saved exactly as you typed it (`extensionSettings.stcm.tagConversionsText`), so comments, blank lines, quotes and order are kept; the parsed rules Convert uses are saved alongside (`extensionSettings.stcm.tagConversions`).
+- Rules are stored in SillyTavern's extension settings and persist across reloads. The editor text is saved exactly as you typed it (`extensionSettings.stcm.tagConversionsText`), so comments, blank lines, quotes and order are kept; the parsed rules Convert uses are saved alongside (`extensionSettings.stcm.tagConversions`). New-tag colors are saved in `extensionSettings.stcm.tagConversionNewTagColors`.
 
 ### Private Folders
 
