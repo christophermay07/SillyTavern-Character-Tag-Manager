@@ -60,13 +60,12 @@ function saveNewTagColors(colors) {
     getContext().saveSettingsDebounced();
 }
 
-// "#" is optional for hex colors: bare 3/4/6/8 hex digits get one prepended.
-// No CSS color name is made only of a-f, so this can't shadow a named color.
-const normalizeColor = v => {
-    const c = v.trim();
-    return /^([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c) ? `#${c}` : c;
-};
-const isValidColor = v => !v || CSS.supports('color', v);
+// Defaults shown by the pickers when no color is set; the same values ST's
+// Manage Tags dialog uses. Picking the default stores '' (see onTagColorize
+// in ST's tags.js).
+function getDefaultTagColors() {
+    return { bg: 'rgba(0, 0, 0, 0.5)', fg: power_user.main_text_color };
+}
 
 // The editor text is saved verbatim so comments, blank lines, quoting and
 // order survive; the parsed rules are what Convert uses.
@@ -250,32 +249,58 @@ export async function openTagConversionsEditor() {
         <div class="stcm_conversion_errors"></div>
         <div class="stcm_conversion_colors">
             <span>Colors for newly created tags:</span>
-            <label>Background <input type="text" class="text_pole stcm_new_tag_bg" placeholder="default" spellcheck="false"></label>
-            <label>Text <input type="text" class="text_pole stcm_new_tag_fg" placeholder="default" spellcheck="false"></label>
+            <div class="stcm_new_tag_color" data-key="bg">
+                <span>Background</span>
+                <toolcool-color-picker class="stcmConvBgPicker"></toolcool-color-picker>
+                <i class="fa-solid fa-rotate-left stcm_color_reset interactable" title="Reset to default" tabindex="0"></i>
+            </div>
+            <div class="stcm_new_tag_color" data-key="fg">
+                <span>Text</span>
+                <toolcool-color-picker class="stcmConvFgPicker"></toolcool-color-picker>
+                <i class="fa-solid fa-rotate-left stcm_color_reset interactable" title="Reset to default" tabindex="0"></i>
+            </div>
             <span class="stcm_new_tag_sample">TODO:example</span>
         </div>
-        <div><small>Any CSS color (<code>ff4d4d</code> or <code>#ff4d4d</code>, <code>orange</code>, <code>rgba(255,0,0,.5)</code>). Leave blank for default colors. Saved with Save / Preview &amp; Convert.</small></div>
+        <div><small><i class="fa-solid fa-rotate-left"></i> resets a color to SillyTavern's default tag color. Saved with Save / Preview &amp; Convert.</small></div>
     `;
     const textarea = root.querySelector('textarea');
     const gutter = root.querySelector('.stcm_conversion_gutter');
     const errorsDiv = root.querySelector('.stcm_conversion_errors');
-    const bgInput = root.querySelector('.stcm_new_tag_bg');
-    const fgInput = root.querySelector('.stcm_new_tag_fg');
     const sample = root.querySelector('.stcm_new_tag_sample');
-    ({ bg: bgInput.value, fg: fgInput.value } = getNewTagColors());
 
-    // sample chip shows how a new tag will look; invalid colors are outlined red
+    // ---- new-tag color pickers ---------------------------------------------
+    // Same pattern as ST's Manage Tags: the picker shows the default when no
+    // color is set, a reset icon appears once it differs, and picking the
+    // default stores '' (= ST's default tag color).
+    const defaults = getDefaultTagColors();
+    const chosen = getNewTagColors();
     const renderSample = () => {
-        for (const input of [bgInput, fgInput]) {
-            input.classList.toggle('stcm_invalid_color', !isValidColor(normalizeColor(input.value)));
-        }
-        const bg = normalizeColor(bgInput.value);
-        const fg = normalizeColor(fgInput.value);
-        sample.style.background = isValidColor(bg) ? bg : '';
-        sample.style.color = isValidColor(fg) ? fg : '';
+        sample.style.background = chosen.bg || defaults.bg;
+        sample.style.color = chosen.fg || defaults.fg;
     };
-    bgInput.addEventListener('input', renderSample);
-    fgInput.addEventListener('input', renderSample);
+    root.querySelectorAll('.stcm_new_tag_color').forEach(wrap => {
+        const key = wrap.dataset.key;
+        const picker = wrap.querySelector('toolcool-color-picker');
+        const reset = wrap.querySelector('.stcm_color_reset');
+        const showReset = () => { reset.style.visibility = chosen[key] ? 'visible' : 'hidden'; };
+        picker.setAttribute('color', chosen[key] || defaults[key]);
+        picker.addEventListener('change', e => {
+            const rgba = e.detail?.rgba;
+            if (!rgba) return;
+            chosen[key] = rgba === defaults[key] ? '' : rgba;
+            showReset();
+            renderSample();
+        });
+        const resetToDefault = () => {
+            chosen[key] = '';
+            picker.color = defaults[key];
+            showReset();
+            renderSample();
+        };
+        reset.addEventListener('click', resetToDefault);
+        reset.addEventListener('keydown', e => { if (e.key === 'Enter') resetToDefault(); });
+        showReset();
+    });
     renderSample();
     textarea.value = getRulesText();
 
@@ -364,13 +389,6 @@ export async function openTagConversionsEditor() {
         onClosing: (popup) => {
             if (popup.result !== POPUP_RESULT.AFFIRMATIVE && popup.result !== PREVIEW_AND_CONVERT) return true;
             parsed = parseRules(textarea.value);
-            const badColors = [[bgInput, 'Background'], [fgInput, 'Text']]
-                .filter(([input]) => !isValidColor(normalizeColor(input.value)))
-                .map(([input, label]) => `${label} color "${escapeHtml(normalizeColor(input.value))}" is not a valid CSS color.`);
-            if (badColors.length) {
-                toastr.error(badColors.join('<br>'), 'Tag Conversions', { escapeHtml: false });
-                return false;
-            }
             if (parsed.errors.length) {
                 validateLive = true;
                 showErrors(parsed.errors);
@@ -383,7 +401,7 @@ export async function openTagConversionsEditor() {
 
     if (result !== POPUP_RESULT.AFFIRMATIVE && result !== PREVIEW_AND_CONVERT) return;
     saveRules(parsed.rules, textarea.value);
-    saveNewTagColors({ bg: normalizeColor(bgInput.value), fg: normalizeColor(fgInput.value) });
+    saveNewTagColors({ ...chosen });
     toastr.success(`Saved ${parsed.rules.length} conversion rule${parsed.rules.length === 1 ? '' : 's'}.`);
 
     if (result === PREVIEW_AND_CONVERT) await runConversion(parsed.rules);

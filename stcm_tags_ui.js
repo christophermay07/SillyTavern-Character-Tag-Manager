@@ -585,7 +585,7 @@ function openColorEditModal(tag) {
                     if (
                         !body.classList.contains('stcm_custom-color-edit-popup') &&
                         body.querySelector(
-                            '.newTagBgPicker, .newTagFgPicker, .editTagBgPicker, .editTagFgPicker'
+                            '.newTagBgPicker, .newTagFgPicker, .editTagBgPicker, .editTagFgPicker, .stcmConvBgPicker, .stcmConvFgPicker'
                         )
                     ) {
                         body.classList.add('stcm_custom-color-edit-popup');

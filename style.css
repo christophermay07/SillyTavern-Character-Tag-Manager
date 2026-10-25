@@ -2412,19 +2412,20 @@ dialog.popup #stcm-popup-pin-input:focus {
     margin-top: 0.75em;
 }
 
-.stcm_conversion_colors label {
+.stcm_new_tag_color {
     display: flex;
     align-items: center;
     gap: 0.4em;
 }
 
-.stcm_conversion_colors input.text_pole {
-    width: 10em;
-    margin: 0;
+.stcm_color_reset {
+    cursor: pointer;
+    opacity: 0.7;
 }
 
-.stcm_conversion_colors input.stcm_invalid_color {
-    outline: 2px solid #e57373;
+.stcm_color_reset:hover,
+.stcm_color_reset:focus {
+    opacity: 1;
 }
 
 .stcm_new_tag_sample {
