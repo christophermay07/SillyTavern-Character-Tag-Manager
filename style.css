@@ -2387,6 +2387,22 @@ dialog.popup #stcm-popup-pin-input:focus {
     white-space: pre;
     overflow: auto;
     resize: vertical;
+    /* 8-30 lines, sized to the screen (beats .text_pole's fit-content) */
+    height: clamp(12em, 45vh, 45em);
+    height: clamp(12em, 45dvh, 45em);
+}
+
+.stcm_conversion_help {
+    margin-bottom: 0.5em;
+}
+
+.stcm_conversion_help summary {
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.stcm_conversion_help details[open] {
+    margin-top: 0.25em;
 }
 
 .stcm_conversion_errors {
@@ -2432,4 +2448,21 @@ dialog.popup #stcm-popup-pin-input:focus {
     padding: 2px 8px;
     border-radius: 4px;
     border: 1px solid var(--SmartThemeBorderColor);
+}
+
+@media (max-width: 600px) {
+    .stcm_conversion_gutter {
+        min-width: 2.4em;
+        padding-inline: 0.3em;
+    }
+
+    .stcm_conversion_editor textarea.stcm_conversion_rules {
+        padding-inline: 0.4em;
+    }
+
+    /* one item per line: label, Background, Text, sample chip */
+    .stcm_conversion_colors {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }

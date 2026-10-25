@@ -232,18 +232,22 @@ export async function openTagConversionsEditor() {
     root.style.textAlign = 'left';
     root.innerHTML = `
         <h3>Tag Conversions</h3>
-        <p><small>
-            One rule per line: <code>source -> target1, target2</code> (spaces around <code>-></code> are required,
-            so names like <code>SFW &lt;-&gt; NSFW</code> work as-is). Wrap a name in double quotes if it contains a
-            spaced <code> -> </code> or (for targets) a comma: <code>"a -> b" -> x, "y, z"</code>.
-            Lines starting with <code>#</code> are comments. Names match ignoring case and accents.
-            <b>Convert</b> replaces each source tag with its targets on every character/group, creates missing
-            targets, and <b>deletes the source tag</b>. Unmapped tags are untouched.
-            Copy/paste this text to back up or share your rules.
-        </small></p>
+        <div class="stcm_conversion_help"><small>
+            <code>source -> target1, target2</code> · one rule per line · <code>#</code> starts a comment
+            <details>
+                <summary>How rules work</summary>
+                Spaces around <code>-></code> are required, so names like <code>SFW &lt;-&gt; NSFW</code> work as-is.
+                Wrap a name in double quotes if it contains a spaced <code> -> </code> or (for targets) a comma:
+                <code>"a -> b" -> x, "y, z"</code>. Names match ignoring case and accents; a source with spaces
+                also matches its underscore form (<code>test tag</code> matches <code>test_tag</code>).
+                <b>Convert</b> replaces each source tag with its targets on every character/group, creates missing
+                targets, and <b>deletes the source tag</b>. Unmapped tags are untouched.
+                Copy/paste this text to back up or share your rules.
+            </details>
+        </small></div>
         <div class="stcm_conversion_editor">
             <div class="stcm_conversion_gutter" aria-hidden="true"></div>
-            <textarea class="text_pole stcm_conversion_rules" rows="16" spellcheck="false" wrap="off"
+            <textarea class="text_pole stcm_conversion_rules" spellcheck="false" wrap="off"
                 placeholder="malepov -> povg:male&#10;drow -> race:elf, phys:dark-skin"></textarea>
         </div>
         <div class="stcm_conversion_errors"></div>
@@ -261,7 +265,6 @@ export async function openTagConversionsEditor() {
             </div>
             <span class="stcm_new_tag_sample">TODO:example</span>
         </div>
-        <div><small><i class="fa-solid fa-rotate-left"></i> resets a color to SillyTavern's default tag color. Saved with Save / Preview &amp; Convert.</small></div>
     `;
     const textarea = root.querySelector('textarea');
     const gutter = root.querySelector('.stcm_conversion_gutter');
