@@ -60,6 +60,12 @@ function saveNewTagColors(colors) {
     getContext().saveSettingsDebounced();
 }
 
+// "#" is optional for hex colors: bare 3/4/6/8 hex digits get one prepended.
+// No CSS color name is made only of a-f, so this can't shadow a named color.
+const normalizeColor = v => {
+    const c = v.trim();
+    return /^([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c) ? `#${c}` : c;
+};
 const isValidColor = v => !v || CSS.supports('color', v);
 
 // The editor text is saved verbatim so comments, blank lines, quoting and
@@ -248,7 +254,7 @@ export async function openTagConversionsEditor() {
             <label>Text <input type="text" class="text_pole stcm_new_tag_fg" placeholder="default" spellcheck="false"></label>
             <span class="stcm_new_tag_sample">TODO:example</span>
         </div>
-        <div><small>Any CSS color (<code>#ff4d4d</code>, <code>orange</code>, <code>rgba(255,0,0,.5)</code>). Leave blank for default colors. Saved with Save / Preview &amp; Convert.</small></div>
+        <div><small>Any CSS color (<code>ff4d4d</code> or <code>#ff4d4d</code>, <code>orange</code>, <code>rgba(255,0,0,.5)</code>). Leave blank for default colors. Saved with Save / Preview &amp; Convert.</small></div>
     `;
     const textarea = root.querySelector('textarea');
     const gutter = root.querySelector('.stcm_conversion_gutter');
@@ -261,10 +267,10 @@ export async function openTagConversionsEditor() {
     // sample chip shows how a new tag will look; invalid colors are outlined red
     const renderSample = () => {
         for (const input of [bgInput, fgInput]) {
-            input.classList.toggle('stcm_invalid_color', !isValidColor(input.value.trim()));
+            input.classList.toggle('stcm_invalid_color', !isValidColor(normalizeColor(input.value)));
         }
-        const bg = bgInput.value.trim();
-        const fg = fgInput.value.trim();
+        const bg = normalizeColor(bgInput.value);
+        const fg = normalizeColor(fgInput.value);
         sample.style.background = isValidColor(bg) ? bg : '';
         sample.style.color = isValidColor(fg) ? fg : '';
     };
@@ -359,8 +365,8 @@ export async function openTagConversionsEditor() {
             if (popup.result !== POPUP_RESULT.AFFIRMATIVE && popup.result !== PREVIEW_AND_CONVERT) return true;
             parsed = parseRules(textarea.value);
             const badColors = [[bgInput, 'Background'], [fgInput, 'Text']]
-                .filter(([input]) => !isValidColor(input.value.trim()))
-                .map(([input, label]) => `${label} color "${escapeHtml(input.value.trim())}" is not a valid CSS color.`);
+                .filter(([input]) => !isValidColor(normalizeColor(input.value)))
+                .map(([input, label]) => `${label} color "${escapeHtml(normalizeColor(input.value))}" is not a valid CSS color.`);
             if (badColors.length) {
                 toastr.error(badColors.join('<br>'), 'Tag Conversions', { escapeHtml: false });
                 return false;
@@ -377,7 +383,7 @@ export async function openTagConversionsEditor() {
 
     if (result !== POPUP_RESULT.AFFIRMATIVE && result !== PREVIEW_AND_CONVERT) return;
     saveRules(parsed.rules, textarea.value);
-    saveNewTagColors({ bg: bgInput.value.trim(), fg: fgInput.value.trim() });
+    saveNewTagColors({ bg: normalizeColor(bgInput.value), fg: normalizeColor(fgInput.value) });
     toastr.success(`Saved ${parsed.rules.length} conversion rule${parsed.rules.length === 1 ? '' : 's'}.`);
 
     if (result === PREVIEW_AND_CONVERT) await runConversion(parsed.rules);
